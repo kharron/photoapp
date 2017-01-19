@@ -5,4 +5,4 @@ import React, {
 import PhotoBrowserExample from './PhotoBrowserExample';
 
 
-AppRegistry.registerComponent('camerApp', () => PhotoBrowserExample);
+AppRegistry.registerComponent('photoapp', () => PhotoBrowserExample);
