@@ -1,8 +1,3 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- */
-
 import React, { Component } from 'react';
 import {
   ActionSheetIOS,
@@ -22,11 +17,24 @@ import db, { firebaseAuth, firebaseTimeStamp} from './db/database';
 
 const EXAMPLES = [
   {
-    title: 'Library photos',
+    title: 'All your photos',
     description: 'Photos from Gallery',
     startOnGrid: true,
-    displayActionButton: true,
+    displayNavArrows: true,
+    displaySelectionButtons: true,
   },
+  {
+    title: 'Your saved photos',
+    description: 'Photos saved in Firebase',
+    startOnGrid: true,
+    displayNavArrows: true,
+  },
+  {
+    title: 'Photos not saved',
+    description:'Photos not saved yet',
+    startOnGrid: true,
+    displayNavArrows:true,
+  }
 ];
 
 CameraRoll.getPhotos({
@@ -37,11 +45,73 @@ CameraRoll.getPhotos({
   data.edges.forEach(d => media.push({
     photo: d.node.image.uri,
   }));
+
+
   EXAMPLES[0].media = media;
 
 }).catch(error => alert(error));
 
+db.singleRef.child('list').on('value', function(datasnapshot){
+  const media = [];
+  datasnapshot.forEach(function(childsnapshot){
+      var item = {
+        photo: childsnapshot.val().path,
+        selected: true,
+      }
 
+      media.push(item);
+  });
+
+ 
+
+    EXAMPLES[0].media =  EXAMPLES[0].media.concat(media);
+
+        function dedupeByKey(arr, key) {
+          const tmp = {};
+          return arr.reduce((p, c) => {
+            const k = c[key];
+            if (tmp[k]) return p;
+            tmp[k] = 1;
+            return p.concat(c);
+          }, []);
+        }
+
+
+    
+     var part2 = EXAMPLES[0].media;
+     var part1 = media;
+
+     var test = part1.concat(part2);
+
+     EXAMPLES[0].media = dedupeByKey(test, 'photo');
+     var galleryLength = EXAMPLES[0].media.length;
+     var mediaLength = media.length;
+
+     var finalLength = galleryLength - mediaLength;
+     console.log("Length", finalLength);
+
+     EXAMPLES[2].media = EXAMPLES[0].media.slice(0, finalLength);
+});
+
+
+
+
+
+
+db.singleRef.child('list').on('value', function(datasnapshot){
+  const media = [];
+  datasnapshot.forEach(function(childsnapshot){
+      var item = {
+        photo: childsnapshot.val().path,
+      }
+
+      media.push(item);
+  });
+
+  console.log(media);
+    EXAMPLES[1].media = media;
+    console.log(EXAMPLES[1].media);
+});
 
 
 
@@ -80,7 +150,45 @@ export default class PhotoBrowserExample extends Component {
   }
 
   _onSelectionChanged(media, index, selected) {
-    alert(`${media.photo} selection status: ${selected}`);
+    //alert(`${media.photo} selection status: ${selected}`);
+
+    if (selected == true) {
+           db.singleRef.child('list').orderByChild('path').equalTo(media.photo).once('value', function(snapshot){
+          if (snapshot.val() === 'undefined' || snapshot.val() === null) {
+                    var single = db.singleRef.child('list').push();
+                            single.set({
+                              savedAt: firebaseTimeStamp,
+                              path: media.photo
+                            }, function(){
+                              console.log('Added to firebase');
+                            });
+
+                            alert('saved in Firebase!');
+          }
+          else{
+            alert('This file is already saved in Firebase!');
+          }
+    })
+    }else{
+                 
+                 db.singleRef.child('list').orderByChild('path').equalTo(media.photo).once('value', function(snapshot){
+                            if (snapshot.val() === 'undefined' || snapshot.val() === null) {
+                                console.log('Not in Firebase');
+                              }else{
+                                snapshot.forEach(function(data){
+                                  var key = data.key;
+                                  console.log(data.key);
+                                  db.singleRef.child('list').child(key).remove();
+                                alert('Removed from Firebase')
+                                })
+                                
+                              }
+                  })
+
+    }
+
+   
+  
   }
 
   _onActionButton(media, index) {
@@ -127,7 +235,7 @@ export default class PhotoBrowserExample extends Component {
               style={{fontSize: 20, color: 'green'}}
               styleDisabled={{color: 'red'}}
               onPress={() => this._handlePress()}>
-              Back up your photos!
+              Back up all your photos!
       </Button>
         </View>
       );
